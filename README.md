@@ -8,3 +8,4 @@ Sistema di prenotazione per Virtual Arena 43.
 - pagamento in arena
 - pannello admin su `/admin`
 - Escape Sunday la domenica sera
+- apertura prenotazioni da Halloween 2026
