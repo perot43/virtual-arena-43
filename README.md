@@ -9,3 +9,4 @@ Sistema di prenotazione per Virtual Arena 43.
 - pannello admin su `/admin`
 - Escape Sunday la domenica sera
 - apertura prenotazioni da Halloween 2026
+- deploy automatico Railway verificato
