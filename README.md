@@ -11,3 +11,4 @@ Sistema di prenotazione per Virtual Arena 43.
 - apertura prenotazioni da Halloween 2026
 - deploy automatico Railway verificato
 - trigger deploy dopo riconnessione GitHub
+- auto deploy Railway riattivato
