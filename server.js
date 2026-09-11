@@ -111,7 +111,7 @@ app.post('/api/stripe/webhook',express.raw({type:'application/json'}),async(req,
 
 app.use(helmet({contentSecurityPolicy:false}));
 app.use(express.json());
-app.use(express.static(path.join(__dirname,'public')));
+app.use(express.static(path.join(__dirname,'public'),{setHeaders(res,filePath){if(/admin\.(?:html|js|css)$/.test(filePath))res.setHeader('Cache-Control','no-store')}}));
 
 app.get('/api/config',(req,res)=>{res.json({schedule:schedule(),prices:prices(),escapeSunday:ESCAPE_SUNDAY,specialOpenings:specialOpenings()})});
 app.get('/api/availability',(req,res)=>{const date=String(req.query.date||'');if(!validDate(date))return res.status(400).json({error:'Data non valida'});const closedDay=db.prepare(`SELECT reason FROM blocked_slots WHERE block_date=? AND block_time IS NULL`).get(date);if(closedDay)return res.json({date,slots:[],escapeSunday:isEscapeSunday(date),closed:true,reason:closedDay.reason||'SOLD OUT'});const escape=isEscapeSunday(date);res.json({date,escapeSunday:escape,slots:slotsForDate(date).map(time=>{const block=db.prepare(`SELECT reason FROM blocked_slots WHERE block_date=? AND block_time=?`).get(date,time);return{time,available:block?0:(escape?(activeBookingsCount(date,time)>0?0:4):Math.max(0,4-occupied(date,time))),blocked:!!block,reason:block?.reason||''}})})});
