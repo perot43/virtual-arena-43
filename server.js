@@ -95,7 +95,12 @@ function slotsForDate(d){if(!validDate(d))return[];const base=isEscapeSunday(d)?
 function specialOpenings(){const out={};for(const x of db.prepare(`SELECT opening_date,opening_time FROM special_openings WHERE opening_date>=date('now') ORDER BY opening_date,opening_time`).all())(out[x.opening_date]??=[]).push(x.opening_time);return out}
 function isBlocked(d,t){return !!db.prepare(`SELECT 1 FROM blocked_slots WHERE block_date=? AND (block_time IS NULL OR block_time=?) LIMIT 1`).get(d,t)}
 function validSlot(d,t){return slotsForDate(d).includes(t)&&!isBlocked(d,t)}
-function expire(){db.prepare(`UPDATE bookings SET status='expired' WHERE status='pending_payment' AND datetime(created_at)<datetime('now','-30 minutes')`).run()}
+function expire(){
+  db.prepare(`UPDATE bookings SET status='expired' WHERE status='pending_payment' AND datetime(created_at)<datetime('now','-30 minutes')`).run();
+  db.prepare(`DELETE FROM bookings WHERE status IN ('expired','cancelled') AND datetime(created_at)<datetime('now','-30 days')`).run();
+  db.prepare(`DELETE FROM bookings WHERE status='confirmed' AND payment_status!='paid' AND booking_date<date('now','-24 months')`).run();
+  db.prepare(`DELETE FROM bookings WHERE payment_status='paid' AND booking_date<date('now','-10 years')`).run();
+}
 function occupied(d,t,excludeId=null){expire();let q=`SELECT COALESCE(SUM(players),0) used FROM bookings WHERE booking_date=? AND booking_time=? AND status IN ('confirmed','pending_payment')`;const args=[d,t];if(excludeId){q+=` AND id<>?`;args.push(excludeId)}return Number(db.prepare(q).get(...args).used||0)}
 function activeBookingsCount(d,t,excludeId=null){expire();let q=`SELECT COUNT(*) n FROM bookings WHERE booking_date=? AND booking_time=? AND status IN ('confirmed','pending_payment')`;const args=[d,t];if(excludeId){q+=` AND id<>?`;args.push(excludeId)}return Number(db.prepare(q).get(...args).n||0)}
 function discountInfo(raw=''){const c=String(raw).trim().toUpperCase();if(!c)return null;return db.prepare(`SELECT code,percent FROM discounts WHERE code=? AND active=1`).get(c)||null}
@@ -113,6 +118,12 @@ app.post('/api/stripe/webhook',express.raw({type:'application/json'}),async(req,
 
 app.use(helmet({contentSecurityPolicy:false}));
 app.use(express.json());
+app.use('/api/bookings',(req,res,next)=>{
+  if(req.method==='POST'&&req.body?.privacyAcknowledged!==true){
+    return res.status(400).json({error:'Conferma di aver letto l’informativa privacy'});
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname,'public'),{setHeaders(res,filePath){if(/admin\.(?:html|js|css)$/.test(filePath))res.setHeader('Cache-Control','no-store')}}));
 
 app.get('/api/config',(req,res)=>{res.json({schedule:schedule(),prices:prices(),escapeSunday:ESCAPE_SUNDAY,specialOpenings:specialOpenings(),discountsEnabled:discountsEnabled()})});
